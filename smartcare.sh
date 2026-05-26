@@ -15,7 +15,7 @@
 #   --trash       vaciar papelera
 #   --dev         cachés de desarrollo (Xcode, pnpm, npm, Docker, Homebrew)
 #   --design      cachés de diseño/video (Adobe, Figma, Sketch, CapCut)
-#   --browsers    cachés de navegador (Safari, Opera, Chrome) — SOLO manual
+#   --browsers    cachés de navegador (Safari, Opera, Chrome)
 #   --memory      liberar RAM inactiva (purge)
 #   --snapshots   limpiar snapshots locales de Time Machine
 #
@@ -69,10 +69,8 @@ for arg in "$@"; do
 done
 
 if $RUN_ALL; then
-  # Nota: --browsers NO se incluye aquí a propósito; debe pedirse explícitamente
-  # (cerrar el navegador antes evita que la caché se regenere al instante).
   MOD_CACHES=true; MOD_LOGS=true; MOD_TRASH=true
-  MOD_DEV=true; MOD_DESIGN=true; MOD_MEMORY=true; MOD_SNAPSHOTS=true
+  MOD_DEV=true; MOD_DESIGN=true; MOD_BROWSERS=true; MOD_MEMORY=true; MOD_SNAPSHOTS=true
 fi
 
 # ----------------------------------------------------------------------------
@@ -92,7 +90,8 @@ size_of() {
   # tamaño en bytes de una ruta (0 si no existe)
   local path="$1"
   [ -e "$path" ] || { echo 0; return; }
-  du -sk "$path" 2>/dev/null | awk '{print $1*1024}'
+  # Si du falla (p.ej. permisos), awk END garantiza que siempre salga un número.
+  du -sk "$path" 2>/dev/null | awk 'END{print ($1=="" ? 0 : $1*1024)}'
 }
 
 confirm() {
@@ -113,7 +112,7 @@ clean_dir_contents() {
   [ -d "$dir" ] || return 0
 
   local sz; sz=$(size_of "$dir")
-  [ "$sz" -eq 0 ] && return 0
+  [ "${sz:-0}" -eq 0 ] && return 0
 
   printf "  %b•%b %s %b(%s)%b -> %s\n" "$CYAN" "$R" "$label" "$DIM" "$dir" "$R" "$(human "$sz")"
 
@@ -248,6 +247,9 @@ if $MOD_DESIGN; then
   clean_dir_contents "$HOME/Library/Caches/Adobe Camera Raw 2" "Adobe Camera Raw (v2)"
   clean_dir_contents "$HOME/Library/Caches/Adobe Camera Raw" "Adobe Camera Raw (legacy)"
   clean_dir_contents "$HOME/Library/Caches/com.adobe.Photoshop" "Photoshop (caché)"
+  # Illustrator: la caché vive en ~/Library/Caches/Adobe Illustrator (regenerable).
+  # NO se toca la carpeta de Settings, que puede contener archivos de recuperación.
+  clean_dir_contents "$HOME/Library/Caches/Adobe Illustrator" "Illustrator (caché)"
 
   # --- Figma ---
   # Ruta real verificada (soporte oficial de Figma): la caché del app de
