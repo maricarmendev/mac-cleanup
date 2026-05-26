@@ -14,6 +14,8 @@
 #   --logs        logs antiguos
 #   --trash       vaciar papelera
 #   --dev         cachés de desarrollo (Xcode, pnpm, npm, Docker, Homebrew)
+#   --design      cachés de diseño/video (Adobe, Figma, Sketch, CapCut)
+#   --browsers    cachés de navegador (Safari, Opera, Chrome) — SOLO manual
 #   --memory      liberar RAM inactiva (purge)
 #   --snapshots   limpiar snapshots locales de Time Machine
 #
@@ -32,6 +34,8 @@ MOD_CACHES=false
 MOD_LOGS=false
 MOD_TRASH=false
 MOD_DEV=false
+MOD_DESIGN=false
+MOD_BROWSERS=false
 MOD_MEMORY=false
 MOD_SNAPSHOTS=false
 
@@ -53,6 +57,8 @@ for arg in "$@"; do
     --logs)      MOD_LOGS=true;      RUN_ALL=false ;;
     --trash)     MOD_TRASH=true;     RUN_ALL=false ;;
     --dev)       MOD_DEV=true;       RUN_ALL=false ;;
+    --design)    MOD_DESIGN=true;    RUN_ALL=false ;;
+    --browsers)  MOD_BROWSERS=true;  RUN_ALL=false ;;
     --memory)    MOD_MEMORY=true;    RUN_ALL=false ;;
     --snapshots) MOD_SNAPSHOTS=true; RUN_ALL=false ;;
     -h|--help)
@@ -63,8 +69,10 @@ for arg in "$@"; do
 done
 
 if $RUN_ALL; then
+  # Nota: --browsers NO se incluye aquí a propósito; debe pedirse explícitamente
+  # (cerrar el navegador antes evita que la caché se regenere al instante).
   MOD_CACHES=true; MOD_LOGS=true; MOD_TRASH=true
-  MOD_DEV=true; MOD_MEMORY=true; MOD_SNAPSHOTS=true
+  MOD_DEV=true; MOD_DESIGN=true; MOD_MEMORY=true; MOD_SNAPSHOTS=true
 fi
 
 # ----------------------------------------------------------------------------
@@ -223,12 +231,102 @@ if $MOD_DEV; then
 fi
 
 # ----------------------------------------------------------------------------
+# MÓDULO: Cachés de diseño y video
+# ----------------------------------------------------------------------------
+# IMPORTANTE: aquí SOLO se tocan cachés regenerables, nunca proyectos ni datos.
+# Adobe regenera su Media Cache solo (la primera apertura de un proyecto será
+# un poco más lenta). Para Figma/CapCut solo se limpia caché, no borradores.
+if $MOD_DESIGN; then
+  header "🎨 Cachés de diseño y video"
+
+  # --- Adobe (Premiere, After Effects, Photoshop, etc.) ---
+  # Media Cache: el gran acumulador en edición de video. Seguro de borrar.
+  clean_dir_contents "$HOME/Library/Application Support/Adobe/Common/Media Cache Files" "Adobe Media Cache Files"
+  clean_dir_contents "$HOME/Library/Application Support/Adobe/Common/Media Cache" "Adobe Media Cache"
+  clean_dir_contents "$HOME/Library/Application Support/Adobe/Common/Peak Files" "Adobe Peak Files"
+  clean_dir_contents "$HOME/Library/Caches/Adobe" "Adobe (caché general)"
+  clean_dir_contents "$HOME/Library/Caches/Adobe Camera Raw 2" "Adobe Camera Raw (v2)"
+  clean_dir_contents "$HOME/Library/Caches/Adobe Camera Raw" "Adobe Camera Raw (legacy)"
+  clean_dir_contents "$HOME/Library/Caches/com.adobe.Photoshop" "Photoshop (caché)"
+
+  # --- Figma ---
+  # Ruta real verificada (soporte oficial de Figma): la caché del app de
+  # escritorio vive en Application Support, no en Caches. OJO: limpiarla
+  # CIERRA TU SESIÓN de Figma (los diseños están en la nube, no se pierden).
+  figma_dir="$HOME/Library/Application Support/Figma"
+  if [ -d "$figma_dir" ]; then
+    printf "  %b•%b Figma %b(%s)%b -> %s\n" "$CYAN" "$R" "$DIM" "$figma_dir" "$R" "$(human "$(size_of "$figma_dir")")"
+    printf "  %b  (limpiar esto cerrará tu sesión de Figma; tendrás que volver a entrar)%b\n" "$DIM" "$R"
+    if confirm "Limpiar caché de Figma? (cierra sesión)"; then
+      clean_dir_contents "$figma_dir/Desktop" "Figma Desktop (caché)"
+      clean_dir_contents "$figma_dir/DesktopProfile" "Figma DesktopProfile"
+    fi
+  fi
+
+  # --- Sketch ---
+  clean_dir_contents "$HOME/Library/Caches/com.bohemiancoding.sketch3" "Sketch (caché)"
+
+  # --- CapCut (versión internacional: com.lemon.lvoverseas) ---
+  # OJO: los proyectos viven en ~/Movies/CapCut, NO se tocan aquí.
+  clean_dir_contents "$HOME/Library/Caches/com.lemon.lvoverseas" "CapCut (caché)"
+  clean_dir_contents "$HOME/Library/Caches/42f94da3.com.lemon.lvoverseas" "CapCut (caché alt.)"
+
+  printf "  %bNota: Adobe regenerará su Media Cache al reabrir proyectos.%b\n" "$DIM" "$R"
+fi
+
+# ----------------------------------------------------------------------------
+# MÓDULO: Navegadores (Safari, Opera)
+# ----------------------------------------------------------------------------
+# Solo se limpia CACHÉ (archivos temporales regenerables). NUNCA se tocan
+# historial, marcadores, contraseñas ni cookies (esos viven en otras carpetas).
+if $MOD_BROWSERS; then
+  header "🌐 Navegadores"
+
+  # --- Safari ---
+  # En macOS moderno Safari está protegido por SIP/TCC: para que la terminal
+  # pueda borrar su caché necesitas dar "Acceso total al disco" a la Terminal
+  # (Ajustes del Sistema > Privacidad y seguridad > Acceso total al disco).
+  # Si no, estas líneas simplemente no borran nada (no rompen nada).
+  clean_dir_contents "$HOME/Library/Caches/com.apple.Safari" "Safari (caché)"
+  clean_dir_contents "$HOME/Library/Containers/com.apple.Safari/Data/Library/Caches" "Safari (caché contenedor)"
+  if [ -d "$HOME/Library/Caches/com.apple.Safari" ] || [ -d "$HOME/Library/Containers/com.apple.Safari" ]; then
+    printf "  %b  (si Safari no se limpió, da 'Acceso total al disco' a la Terminal)%b\n" "$DIM" "$R"
+  fi
+
+  # --- Opera --- (caché regenerable; datos/perfil están en Application Support)
+  clean_dir_contents "$HOME/Library/Caches/com.operasoftware.Opera" "Opera (caché)"
+  # Variantes comunes por si usa Opera GX o Developer:
+  clean_dir_contents "$HOME/Library/Caches/com.operasoftware.OperaGX" "Opera GX (caché)"
+  clean_dir_contents "$HOME/Library/Caches/com.operasoftware.OperaDeveloper" "Opera Developer (caché)"
+
+  # --- Google Chrome --- (caché regenerable; el perfil, marcadores, contraseñas
+  # y sesiones viven en ~/Library/Application Support/Google/Chrome y NO se tocan)
+  # En macOS, Chrome guarda TODA su caché (incluyendo Default/Cache,
+  # Default/Code Cache y Default/GPUCache) bajo ~/Library/Caches/Google/Chrome.
+  # Por eso una sola línea padre basta; las rutas en Application Support/.../Default
+  # son de Windows y en Mac no existen.
+  clean_dir_contents "$HOME/Library/Caches/Google/Chrome" "Chrome (caché)"
+
+  printf "  %bNota: historial, contraseñas y marcadores NO se tocan.%b\n" "$DIM" "$R"
+fi
+
+# ----------------------------------------------------------------------------
 # MÓDULO: Memoria RAM
 # ----------------------------------------------------------------------------
 if $MOD_MEMORY; then
   header "🧠 Memoria"
-  printf "  %bMemoria (vm_stat):%b\n" "$DIM" "$R"
-  vm_stat | awk '/free|inactive|wired|active/ {print "    "$0}'
+  printf "  %bMemoria (MB):%b\n" "$DIM" "$R"
+  # vm_stat reporta en PÁGINAS. El tamaño de página varía (Apple Silicon = 16 KB,
+  # Intel = 4 KB), así que lo leemos de la cabecera y convertimos a MB.
+  vm_stat | awk '
+    NR==1 { for (i=1; i<=NF; i++) if ($i ~ /^[0-9]+$/) ps=$i; if (ps=="") ps=16384; next }
+    function mb(v){ gsub(/\./,"",v); return v*ps/1048576 }
+    /Pages free/             { printf "    Libre:       %9.1f MB\n", mb($NF) }
+    /Pages active/           { printf "    Activa:      %9.1f MB\n", mb($NF) }
+    /Pages inactive/         { printf "    Inactiva:    %9.1f MB\n", mb($NF) }
+    /Pages wired down/       { printf "    Reservada:   %9.1f MB\n", mb($NF) }
+    /occupied by compressor/ { printf "    Comprimida:  %9.1f MB\n", mb($NF) }
+  '
   if confirm "Liberar RAM inactiva con 'sudo purge'?"; then
     $DRY_RUN || sudo purge
     printf "  %b✓ purge ejecutado%b\n" "$GREEN" "$R"
