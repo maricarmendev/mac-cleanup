@@ -68,7 +68,9 @@ o el Dock y no exige escribir ningún comando.
 - `smartcare/tui/app.py` — aplicación Textual: pantallas, eventos y presentación.
 - `smartcare/cli.py` — punto de entrada. Sin argumentos abre la TUI; con flags corre en modo texto
   plano.
-- `packaging/build_binary.py` — genera el binario autocontenido y el lanzador doble-clicable.
+- `scripts/build_binary.py` — genera el binario autocontenido y el lanzador doble-clicable. (No se
+  llama `packaging/` porque ese nombre eclipsaría a la librería `packaging` de PyPI, de la que
+  dependen pytest y PyInstaller, en todo lo que se ejecute desde la raíz del repositorio.)
 - `tests/` — pytest sobre el motor.
 
 ### Clasificación de riesgo (impulsa el UX)
@@ -113,12 +115,12 @@ script actual, que sigue siendo la referencia de comportamiento hasta la última
 
 **Tareas**
 
-- [ ] Crear el proyecto `uv` con `pyproject.toml`: dependencia `textual`, extra de desarrollo con
+- [x] Crear el proyecto `uv` con `pyproject.toml`: dependencia `textual`, extra de desarrollo con
       `pytest`, `ruff` y `pyinstaller`, y el ejecutable `smartcare`.
-- [ ] Crear el árbol de paquetes `smartcare/core/`, `smartcare/tui/`, `tests/`, `packaging/`.
-- [ ] Ampliar el `.gitignore` con `dist/`, `build/` y `*.spec` de PyInstaller.
-- [ ] Configurar `ruff` en `pyproject.toml` con reglas de estilo y longitud de línea.
-- [ ] Comprobar que `uv sync` resuelve e instala en un entorno limpio.
+- [x] Crear el árbol de paquetes `smartcare/core/`, `smartcare/tui/`, `tests/`, `scripts/`.
+- [x] Ampliar el `.gitignore` con `dist/`, `build/` y `*.spec` de PyInstaller.
+- [x] Configurar `ruff` en `pyproject.toml` con reglas de estilo y longitud de línea.
+- [x] Comprobar que `uv sync` resuelve e instala en un entorno limpio.
 
 **Ejecución.** Sin lógica de negocio todavía. Al terminar, `uv run python -c "import smartcare"`
 debe funcionar.
@@ -312,7 +314,7 @@ dependencias; el lanzador abre Terminal y lo ejecuta.
 
 **Tareas**
 
-- [ ] `packaging/build_binary.py`: generar con PyInstaller un binario único que arranque la TUI.
+- [ ] `scripts/build_binary.py`: generar con PyInstaller un binario único que arranque la TUI.
 - [ ] Lanzador `SmartCare.command` doble-clicable que ejecuta el binario, sin depender de rutas de
       la máquina de desarrollo.
 - [ ] Envoltorio `.app` mínimo con icono propio para el Dock, que abra el lanzador en Terminal.

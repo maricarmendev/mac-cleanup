@@ -71,3 +71,8 @@ dmypy.json
 # Linting
 .flake8
 .pylintrc
+
+# PyInstaller (fase 6) — dist/ y build/ ya están cubiertos arriba
+*.spec
+
+# uv: el lockfile SÍ se versiona, es lo que hace reproducible el entorno

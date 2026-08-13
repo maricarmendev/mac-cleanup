@@ -1,0 +1,50 @@
+[project]
+name = "smartcare"
+version = "0.1.0"
+description = "Limpieza y mantenimiento de macOS con interfaz de terminal"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.13"
+dependencies = [
+    "textual>=8.2.0",
+]
+
+[project.scripts]
+smartcare = "smartcare.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "ruff>=0.14.0",
+    # Declara soporte de Python 3.14, el intérprete que se empaquetará en la fase 6
+    "pyinstaller>=6.22.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["smartcare"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "PTH",  # exigir pathlib: el motor manipula rutas de borrado, y Path evita
+            # la concatenación de cadenas que es donde nacen los errores de ruta
+    "RUF",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
