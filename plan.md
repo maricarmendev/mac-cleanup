@@ -60,6 +60,9 @@ o el Dock y no exige escribir ningún comando.
   inventario de rutas del script actual, incluidas sus notas de seguridad, y lo amplía con los
   objetivos nuevos (contenedores sandbox, QuickLook, extras de Xcode, cachés Electron…) y la lista
   de exclusión de datos sincronizados y de recuperación.
+- `smartcare/core/safety.py` — la primitiva de borrado y los seis invariantes. Separa el plan (qué
+  se quitaría) de la ejecución, de modo que la simulación sea el mismo recorrido sin la mitad que
+  escribe, y que haya un único punto del programa que toque el disco.
 - `smartcare/core/privileges.py` — gestión de `sudo`: validación única por ejecución y refresco
   mientras duren las operaciones privilegiadas.
 - `smartcare/core/permissions.py` — detección de Acceso Total al Disco.
@@ -140,18 +143,18 @@ mediante llamadas de retorno, de modo que luego sirva igual a la TUI y al modo t
 
 **Tareas**
 
-- [ ] `units.py`: conversión de bytes a texto legible, equivalente a la función `human` del script.
-- [ ] `system.py`: versión de macOS, arquitectura, espacio libre en disco y estadísticas de memoria.
+- [x] `units.py`: conversión de bytes a texto legible, equivalente a la función `human` del script.
+- [x] `system.py`: versión de macOS, arquitectura, espacio libre en disco y estadísticas de memoria.
       La lectura de memoria debe deducir el tamaño de página en vez de asumirlo, como ya hace el
       script actual.
-- [ ] `targets.py`: los tres tipos de objetivo, cada uno con medición, limpieza y declaración de
+- [x] `targets.py`: los tres tipos de objetivo, cada uno con medición, limpieza y declaración de
       privilegios. Un objetivo ausente se marca como no aplicable en vez de fallar; un objetivo sin
       tamaño medible (comandos externos, snapshots, memoria) lo declara en vez de reportar cero.
-- [ ] `catalog.py`: trasladar los 8 módulos con todas sus rutas y notas, más la etiqueta de riesgo.
+- [x] `catalog.py`: trasladar los 8 módulos con todas sus rutas y notas, más la etiqueta de riesgo.
       Resolver los solapamientos entre módulos (las rutas de Yarn, Adobe, Sketch, CapCut y
       navegadores viven bajo `~/Library/Caches`, que ya cubre el módulo de cachés) para que la suma
       de módulos seleccionados no cuente nada dos veces.
-- [ ] `catalog.py`: añadir los objetivos nuevos, asignados a los módulos existentes para no cambiar
+- [x] `catalog.py`: añadir los objetivos nuevos, asignados a los módulos existentes para no cambiar
       los flags:
       - *Cachés*: contenedores sandbox (`~/Library/Containers/*/Data/Library/Caches` y
         `~/Library/Group Containers/*/Library/Caches` — el gran hueco del script actual, requiere
@@ -166,24 +169,24 @@ mediante llamadas de retorno, de modo que luego sirva igual a la TUI y al modo t
         `xcrun simctl delete unavailable`), CocoaPods, Gradle, `uv cache clean`, cargo, y
         actualizaciones de iOS antiguas (`~/Library/iTunes/iPhone Software Updates`).
       - *Con aviso*: cachés de media de Telegram/Slack en Group Containers (se re-descargan).
-- [ ] Lista de exclusión en el catálogo (datos sincronizados: contenedores de iCloud, Adobe
+- [x] Lista de exclusión en el catálogo (datos sincronizados: contenedores de iCloud, Adobe
       CoreSync y CC Libraries; datos de recuperación: `InDesign Recovery`), aplicada por el motor
       como invariante (nº 5), no como convención — incluido el descenso para conservar rutas
       excluidas dentro de un directorio que se barre.
-- [ ] Exclusiones documentadas (deliberadas, no objetivos): previsualizaciones de Lightroom
+- [x] Exclusiones documentadas (deliberadas, no objetivos): previsualizaciones de Lightroom
       (`*.lrdata`, junto al catálogo en Imágenes) — ocupan mucho pero regenerarlas cuesta horas;
       media de WhatsApp — no siempre re-descargable.
-- [ ] `engine.py`: análisis concurrente con progreso y cancelación; limpieza secuencial con progreso,
+- [x] `engine.py`: análisis concurrente con progreso y cancelación; limpieza secuencial con progreso,
       registro por objetivo y recuento de errores; modo simulación como opción por defecto.
-- [ ] `engine.py`: staging en papelera para los objetivos con aviso — mover a `~/.Trash` con nombre
+- [x] `engine.py`: staging en papelera para los objetivos con aviso — mover a `~/.Trash` con nombre
       no colisionante en lugar de borrar; si la ruta está en otro volumen o el movimiento falla, se
       degrada a "omitido", nunca a borrado directo.
-- [ ] `engine.py`: filtro de antigüedad (mtime > N días, 7 por defecto) aplicable por objetivo;
+- [x] `engine.py`: filtro de antigüedad (mtime > N días, 7 por defecto) aplicable por objetivo;
       activo en cachés y logs, sin efecto en papelera y comandos externos.
-- [ ] `engine.py`: snapshot APFS previo (`tmutil localsnapshot`) al comenzar una limpieza real; su
+- [x] `engine.py`: snapshot APFS previo (`tmutil localsnapshot`) al comenzar una limpieza real; su
       fallo se reporta pero no bloquea (puede no haber Time Machine configurado).
-- [ ] Implementar los seis invariantes de seguridad en el borrado.
-- [ ] Tests: cobertura de los seis invariantes, del cálculo de tamaños, del filtro de antigüedad
+- [x] Implementar los seis invariantes de seguridad en el borrado (en `safety.py`).
+- [x] Tests: cobertura de los seis invariantes, del cálculo de tamaños, del filtro de antigüedad
       (límites de fecha), del staging (colisiones de nombre, otro volumen) y del comportamiento con
       rutas inexistentes, sin permisos y con enlaces simbólicos. Para la exclusión: un árbol
       simulado con `InDesign Recovery` dentro de la caché debe sobrevivir al barrido del padre.
