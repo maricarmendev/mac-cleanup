@@ -48,6 +48,12 @@ def allowed_roots() -> tuple[Path, ...]:
         home / ".cache",
         home / ".gradle",
         home / ".cargo",
+        home / ".npm",
+        home / ".bun" / "install" / "cache",
+        home / ".expo",
+        home / ".agent-browser",
+        # Solo la caché: el resto de ~/.nvm son las versiones de Node instaladas.
+        home / ".nvm" / ".cache",
         Path("/Library/Caches"),
         Path("/Library/Logs"),
     )
@@ -122,6 +128,31 @@ DELIBERATE_EXCLUSIONS = (
         "InDesign Recovery, dentro de la propia caché de InDesign",
         "contienen trabajo sin guardar",
     ),
+    DeliberateExclusion(
+        "Máquina virtual de Claude",
+        "~/Library/Application Support/Claude/vm_bundles",
+        "la app la usa mientras corre y la vuelve a descargar entera",
+    ),
+    DeliberateExclusion(
+        "Historial de Claude Code",
+        "~/.claude/projects",
+        "son las conversaciones guardadas, no caché",
+    ),
+    DeliberateExclusion(
+        "Emuladores e imágenes de Android",
+        "~/.android/avd y ~/Library/Android/sdk",
+        "borrarlos elimina los emuladores configurados y el SDK instalado",
+    ),
+    DeliberateExclusion(
+        "Simuladores de iOS",
+        "~/Library/Developer/CoreSimulator/Devices",
+        "guardan las apps y el estado de cada simulador; los no disponibles ya se borran",
+    ),
+    DeliberateExclusion(
+        "Datos de sitios en Chrome",
+        "IndexedDB, File System y Local Storage de cada perfil",
+        "son datos que guardan las páginas, no caché",
+    ),
 )
 
 
@@ -130,18 +161,39 @@ DELIBERATE_EXCLUSIONS = (
 # (Local Storage, IndexedDB, sesión) contiene estado y documentos sin
 # sincronizar, y queda fuera del objetivo a propósito.
 
-ELECTRON_APPS = ("Miro", "Notion", "Zeplin", "Framer", "Slack", "Discord", "Postman")
+# Carpeta en Application Support → nombre visible. La carpeta no siempre se
+# llama como la app: VS Code usa `Code` y Obsidian, `obsidian`.
+ELECTRON_APPS = {
+    "Miro": "Miro",
+    "Notion": "Notion",
+    "Zeplin": "Zeplin",
+    "Framer": "Framer",
+    "Slack": "Slack",
+    "Discord": "Discord",
+    "Postman": "Postman",
+    "Claude": "Claude",
+    "Code": "VS Code",
+    "Grain": "Grain",
+    "Linear": "Linear",
+    "Fathom": "Fathom",
+    "obsidian": "Obsidian",
+    "ResponsivelyApp": "Responsively",
+}
 ELECTRON_CACHE_DIRS = ("Cache", "Code Cache", "GPUCache")
+
+
+def _slug(text: str) -> str:
+    return text.replace(" ", "-").lower()
 
 
 def _electron_targets() -> tuple[DirectoryTarget, ...]:
     return tuple(
         DirectoryTarget(
-            key=f"electron-{app.lower()}-{sub.replace(' ', '-').lower()}",
-            label=f"{app} ({sub})",
-            path=f"~/Library/Application Support/{app}/{sub}",
+            key=f"electron-{_slug(label)}-{_slug(sub)}",
+            label=f"{label} ({sub})",
+            path=f"~/Library/Application Support/{folder}/{sub}",
         )
-        for app in ELECTRON_APPS
+        for folder, label in ELECTRON_APPS.items()
         for sub in ELECTRON_CACHE_DIRS
     )
 
@@ -198,6 +250,11 @@ CACHES = Module(
             note="se vuelve a descargar al abrir las conversaciones",
         ),
         *_electron_targets(),
+        DirectoryTarget(
+            "caches-zoom-webview",
+            "Zoom (caché web)",
+            "~/Library/Application Support/zoom.us/data/UnifyWebView_Cache",
+        ),
         CommandTarget("caches-quicklook", "Miniaturas de QuickLook", ("qlmanage", "-r", "cache")),
         CommandTarget(
             "caches-fonts",
@@ -273,6 +330,33 @@ DEV = Module(
         DirectoryTarget("dev-cocoapods", "CocoaPods", "~/Library/Caches/CocoaPods"),
         DirectoryTarget("dev-gradle", "Gradle", "~/.gradle/caches"),
         DirectoryTarget("dev-yarn", "Yarn", "~/Library/Caches/Yarn"),
+        # `npm cache clean` no toca _npx: los paquetes que bajó `npx` se
+        # acumulan aquí sin límite y se vuelven a descargar al usarse.
+        DirectoryTarget("dev-npx", "npx (paquetes descargados)", "~/.npm/_npx"),
+        DirectoryTarget("dev-bun", "Bun", "~/.bun/install/cache"),
+        DirectoryTarget("dev-nvm", "nvm (descargas de Node)", "~/.nvm/.cache"),
+        DirectoryTarget(
+            "dev-expo-simulator",
+            "Expo (apps de simulador)",
+            "~/.expo/ios-simulator-app-cache",
+        ),
+        DirectoryTarget(
+            "dev-agent-browser",
+            "agent-browser (temporales)",
+            "~/.agent-browser/tmp",
+            age_filtered=True,
+            note="solo lo que lleva días sin usarse; una sesión abierta escribe aquí",
+        ),
+        DirectoryTarget(
+            "dev-vscode-cached-data",
+            "VS Code (código compilado)",
+            "~/Library/Application Support/Code/CachedData",
+        ),
+        DirectoryTarget(
+            "dev-vscode-vsix",
+            "VS Code (instaladores de extensiones)",
+            "~/Library/Application Support/Code/CachedExtensionVSIXs",
+        ),
         DirectoryTarget("dev-cache-dir", "~/.cache (varios)", "~/.cache"),
         DirectoryTarget(
             "dev-ios-updates",
@@ -298,6 +382,7 @@ DEV = Module(
             ("npm", "cache", "clean", "--force"),
             probe="npm",
             size_from=("npm", "config", "get", "cache"),
+            size_subpath="_cacache",
         ),
         CommandTarget(
             "dev-pnpm",
@@ -408,6 +493,38 @@ BROWSERS = Module(
             note="requiere Acceso Total al Disco",
         ),
         DirectoryTarget("browsers-chrome", "Chrome (caché)", "~/Library/Caches/Google/Chrome"),
+        # El comodín recorre todos los perfiles (Default, Profile 1…). Junto a
+        # CacheStorage viven IndexedDB y File System, que son datos de los
+        # sitios y quedan fuera.
+        DirectoryTarget(
+            "browsers-chrome-service-workers",
+            "Chrome (caché de Service Workers)",
+            "~/Library/Application Support/Google/Chrome/*/Service Worker/CacheStorage",
+            note="cierra Chrome antes de limpiar",
+        ),
+        DirectoryTarget(
+            "browsers-chrome-gpu",
+            "Chrome (caché de GPU)",
+            "~/Library/Application Support/Google/Chrome/*/GPUCache",
+        ),
+        DirectoryTarget(
+            "browsers-chrome-components",
+            "Chrome (componentes descargados)",
+            "~/Library/Application Support/Google/Chrome/component_crx_cache",
+        ),
+        DirectoryTarget(
+            "browsers-google-updater",
+            "Google Updater (descargas)",
+            "~/Library/Application Support/Google/GoogleUpdater/crx_cache",
+        ),
+        DirectoryTarget(
+            "browsers-chrome-ai-model",
+            "Chrome (modelo de IA local)",
+            "~/Library/Application Support/Google/Chrome/OptGuideOnDeviceModel",
+            stage_in_trash=True,
+            risk=Risk.WARNING,
+            note="Chrome lo vuelve a descargar (~4 GB) si las funciones de IA siguen activas",
+        ),
         DirectoryTarget(
             "browsers-opera", "Opera (caché)", "~/Library/Caches/com.operasoftware.Opera"
         ),

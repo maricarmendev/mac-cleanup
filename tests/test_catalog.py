@@ -143,6 +143,27 @@ def test_electron_targets_never_reach_app_state_or_documents():
             assert not any(nombre in target.path for nombre in prohibidas)
 
 
+def test_chrome_targets_never_reach_site_data():
+    prohibidas = ("IndexedDB", "File System", "Local Storage", "Session Storage", "Cookies")
+    for target in OBJETIVOS_DE_DIRECTORIO:
+        if "Google" in target.path:
+            assert not any(nombre in target.path for nombre in prohibidas), target.path
+
+
+def test_installed_node_versions_are_outside_the_allowed_roots():
+    """De ~/.nvm solo se permite la caché; las versiones instaladas son herramientas."""
+    instaladas = Path("~/.nvm/versions/node").expanduser()
+    assert not any(instaladas.is_relative_to(raiz) for raiz in catalog.allowed_roots())
+
+
+def test_npm_is_measured_by_what_its_command_actually_cleans():
+    dev = catalog.module_by_key("dev")
+    npm = next(t for t in dev.targets if t.key == "dev-npm")
+    npx = next(t for t in dev.targets if t.key == "dev-npx")
+    assert npm.size_subpath == "_cacache"
+    assert npx.path.endswith("/_npx")
+
+
 def test_there_is_one_electron_target_per_app_and_folder():
     electron = [t for t in OBJETIVOS_DE_DIRECTORIO if t.key.startswith("electron-")]
     assert len(electron) == len(catalog.ELECTRON_APPS) * len(catalog.ELECTRON_CACHE_DIRS)

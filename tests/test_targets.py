@@ -148,6 +148,27 @@ def test_a_command_can_report_the_size_of_its_own_cache(tmp_path, policy):
     assert not medida.counts_towards_total, "no puede sumarse al total: es una estimación"
 
 
+def test_a_command_measures_only_the_part_it_cleans(tmp_path):
+    """`npm cache clean` vacía _cacache; _npx, junto a ella, no se libera."""
+    cache = tmp_path / "npm-cache"
+    (cache / "_cacache").mkdir(parents=True)
+    (cache / "_cacache" / "paquete.tgz").write_bytes(b"x" * 4096)
+    (cache / "_npx").mkdir()
+    (cache / "_npx" / "enorme.bin").write_bytes(b"x" * 1_000_000)
+
+    runner = RunnerFalso({"npm config get cache": CommandResult(ok=True, output=str(cache))})
+    objetivo = CommandTarget(
+        "npm",
+        "npm",
+        ("npm", "cache", "clean", "--force"),
+        size_from=("npm", "config", "get", "cache"),
+        size_subpath="_cacache",
+    )
+    medida = objetivo.measure(runner)
+
+    assert 4096 <= medida.size < 1_000_000
+
+
 def test_a_command_cache_outside_the_allowed_roots_can_still_be_measured(tmp_path):
     """Medir no es borrar: `npm config get cache` apunta donde cada máquina quiera.
 

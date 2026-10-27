@@ -169,6 +169,9 @@ class CommandTarget:
     probe: str = ""
     readiness: tuple[str, ...] = ()
     size_from: tuple[str, ...] = ()
+    # Cuando el comando solo vacía una parte de la carpeta que reporta
+    # `size_from`, medir la carpeta entera promete espacio que no se libera.
+    size_subpath: str = ""
     requires_privileges: bool = False
     risk: Risk = Risk.SAFE
     note: str = ""
@@ -203,7 +206,7 @@ class CommandTarget:
         result = runner(self.size_from)
         if not result.ok or not result.output:
             return None
-        cache = Path(result.output.splitlines()[0].strip()).expanduser()
+        cache = Path(result.output.splitlines()[0].strip()).expanduser() / self.size_subpath
         return cache if cache.is_dir() else None
 
     def clean(self, *, dry_run: bool, runner: CommandRunner = run_command) -> CleanOutcome:
